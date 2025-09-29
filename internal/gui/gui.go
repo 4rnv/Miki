@@ -81,7 +81,6 @@ func (b *Browser) Special_Page(err error) {
 	img.FillMode = canvas.ImageFillContain
 	img.SetMinSize(fyne.NewSize(300, 200))
 	objs = append(objs, container.NewCenter(img))
-	// ADD BETTER ERROR MESSAGING (PAGE NOT FOUND FOR 404, FORBIDDEN FOR 403 ETC)
 	var error_txt *canvas.Text
 	if err == nil {
 		error_txt = canvas.NewText("This page is either blank or currently unsupported", color.NRGBA{R: 200, G: 20, B: 60, A: 255})

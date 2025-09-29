@@ -202,6 +202,7 @@ func (_url URL) Request(redirect_count int) (string, error) {
 	versionn := parts[0]
 	status := parts[1]
 	explanation := parts[2]
+	special_message := status + " " + explanation
 	fmt.Println("\n", strings.Repeat("* ", 8))
 	fmt.Printf("%s %s %s \n", versionn, status, explanation)
 	fmt.Println(strings.Repeat(" *", 8))
@@ -237,6 +238,9 @@ func (_url URL) Request(redirect_count int) (string, error) {
 			fmt.Println("Redirecting to: ", new_url)
 			return NewURL(new_url).Request(redirect_count + 1)
 		}
+	}
+	if 400 <= statusInt {
+		return "", fmt.Errorf("%s", special_message)
 	}
 	content_length, _ := strconv.Atoi(headers["content-length"])
 	body := make([]byte, content_length)
