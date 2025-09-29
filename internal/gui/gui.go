@@ -33,6 +33,11 @@ func NewBrowser(a fyne.App) *Browser {
 	urlEntry := widget.NewEntry()
 	urlEntry.SetPlaceHolder("Enter URL")
 
+	const (
+		InitialWidth  = 800
+		InitialHeight = 600
+	)
+
 	b := &Browser{
 		Window:     win,
 		AddressBar: urlEntry,
@@ -41,10 +46,10 @@ func NewBrowser(a fyne.App) *Browser {
 	toolbar := container.New(layout.NewVBoxLayout(), b.AddressBar, b.LoadBtn)
 	b.Content = container.NewVBox()
 	b.Scroll = container.NewVScroll(b.Content)
-	b.Scroll.SetMinSize(fyne.NewSize(800, 600-40))
-	contain := container.NewBorder(toolbar, nil, nil, b.Scroll)
+	b.Scroll.SetMinSize(fyne.NewSize(InitialWidth, InitialHeight-40))
+	contain := container.NewBorder(toolbar, nil, nil, nil, b.Scroll)
 	win.SetContent(contain)
-	win.Resize(fyne.NewSize(800, 600))
+	win.Resize(fyne.NewSize(InitialWidth, InitialHeight))
 	urlEntry.OnSubmitted = func(s string) {
 		go b.LoadAndRender(s)
 	}
