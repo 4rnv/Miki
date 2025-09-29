@@ -58,7 +58,7 @@ func (b *Browser) LoadAndRender(raw string) {
 	u := yurl.NewURL(raw)
 	body, err := u.Request(0)
 	if err != nil || body == "" {
-		b.Special_Page()
+		b.Special_Page(err)
 		return
 	}
 	text := yurl.Lex(body)
@@ -70,17 +70,22 @@ func (b *Browser) LoadAndRender(raw string) {
 	b.Content.Objects = []fyne.CanvasObject{content}
 }
 
-func (b *Browser) Special_Page() {
+func (b *Browser) Special_Page(err error) {
 	var objs []fyne.CanvasObject
 	img := canvas.NewImageFromFile("assets/sayak.png")
 	img.FillMode = canvas.ImageFillContain
 	img.SetMinSize(fyne.NewSize(300, 200))
 	objs = append(objs, container.NewCenter(img))
 	// ADD BETTER ERROR MESSAGING (PAGE NOT FOUND FOR 404, FORBIDDEN FOR 403 ETC)
-	txt := canvas.NewText("This page is either blank or currently unsupported", color.NRGBA{R: 200, G: 20, B: 60, A: 255})
-	txt.TextSize = 20
-	txt.Alignment = fyne.TextAlignCenter
-	objs = append(objs, container.NewCenter(txt))
+	var error_txt *canvas.Text
+	if err == nil {
+		error_txt = canvas.NewText("This page is either blank or currently unsupported", color.NRGBA{R: 200, G: 20, B: 60, A: 255})
+	} else {
+		error_txt = canvas.NewText(err.Error(), color.NRGBA{R: 200, G: 20, B: 60, A: 255})
+	}
+	error_txt.TextSize = 20
+	error_txt.Alignment = fyne.TextAlignCenter
+	objs = append(objs, container.NewCenter(error_txt))
 	b.Mu.Lock()
 	b.Content.Objects = objs
 	b.Text = ""
