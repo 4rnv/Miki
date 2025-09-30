@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"miki/internal/lexer"
 	"net"
 	"net/url"
 	"os"
@@ -254,44 +255,11 @@ func (_url URL) Request(redirect_count int) (string, error) {
 		}
 	}
 	if !utf8.Valid(body) {
-		body_string, err := ValidUTF_8(body)
+		body_string, err := lexer.ValidUTF_8(body)
 		if err != nil {
-			return Lex(string(body)), nil
+			return lexer.Lex(string(body)), nil
 		}
-		return Lex(body_string), nil
+		return lexer.Lex(body_string), nil
 	}
-	return Lex(string(body)), nil
-}
-
-func Lex(body string) string {
-	in_tag := false
-	var b strings.Builder
-	var text_to_print string
-	for _, c := range body {
-		if c == '<' {
-			in_tag = true
-		} else if c == '>' {
-			in_tag = false
-		} else if in_tag == false {
-			b.WriteRune(c)
-		}
-	}
-	text_to_print = b.String()
-	text_to_print = strings.ReplaceAll(strings.ReplaceAll(text_to_print, "&lt;", "<"), "&gt;", ">")
-	return text_to_print
-}
-
-func ValidUTF_8(body []byte) (string, error) {
-	var b strings.Builder
-	for len(body) > 0 {
-		r, size := utf8.DecodeRune(body)
-		if r == utf8.RuneError && size == 1 {
-			b.WriteRune('\uFFFD')
-			body = body[1:]
-		} else {
-			b.WriteRune(r)
-			body = body[size:]
-		}
-	}
-	return b.String(), nil
+	return lexer.Lex(string(body)), nil
 }

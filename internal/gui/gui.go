@@ -4,6 +4,7 @@ package main
 
 import (
 	"image/color"
+	"miki/internal/lexer"
 	"miki/internal/yurl"
 	"os"
 	"strings"
@@ -66,7 +67,7 @@ func (b *Browser) LoadAndRender(raw string) {
 		b.Special_Page(err)
 		return
 	}
-	text := yurl.Lex(body)
+	text := lexer.Lex(body)
 	b.Mu.Lock()
 	b.Text = text
 	b.Mu.Unlock()
