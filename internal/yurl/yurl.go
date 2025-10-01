@@ -255,11 +255,8 @@ func (_url URL) Request(redirect_count int) (string, error) {
 		}
 	}
 	if !utf8.Valid(body) {
-		body_string, err := lexer.ValidUTF_8(body)
-		if err != nil {
-			return lexer.Lex(string(body)), nil
-		}
-		return lexer.Lex(body_string), nil
+		body_string, _ := lexer.ValidUTF_8(body)
+		return body_string, nil
 	}
-	return lexer.Lex(string(body)), nil
+	return string(body), nil
 }
