@@ -15,7 +15,6 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -26,6 +25,7 @@ type Browser struct {
 	Scroll     *container.Scroll
 	LoadBtn    *widget.Button
 	Content    *fyne.Container
+	Title      *widget.Label
 	Text       string
 	Mu         sync.Mutex
 }
@@ -34,7 +34,7 @@ func NewBrowser(a fyne.App) *Browser {
 	win := a.NewWindow("Miki Browser")
 	urlEntry := widget.NewEntry()
 	urlEntry.SetPlaceHolder("Enter URL")
-
+	title := widget.NewLabel("New Window")
 	const (
 		InitialWidth  = 800
 		InitialHeight = 600
@@ -43,9 +43,15 @@ func NewBrowser(a fyne.App) *Browser {
 	b := &Browser{
 		Window:     win,
 		AddressBar: urlEntry,
+		Title:      title,
 	}
 	b.LoadBtn = widget.NewButtonWithIcon("Load", theme.SearchIcon(), func() { go b.LoadAndRender(urlEntry.Text) })
-	toolbar := container.New(layout.NewVBoxLayout(), b.AddressBar, b.LoadBtn)
+	toolbar := container.NewGridWithColumns(3,
+		container.NewStack(title),
+		urlEntry,
+		b.LoadBtn,
+	)
+	//toolbar := container.New(layout.NewVBoxLayout(), b.AddressBar, b.LoadBtn)
 	b.Content = container.NewVBox()
 	b.Scroll = container.NewVScroll(b.Content)
 	b.Scroll.SetMinSize(fyne.NewSize(InitialWidth, InitialHeight-40))
@@ -71,6 +77,9 @@ func (b *Browser) LoadAndRender(raw string) {
 	textOrHTML := lexer.LexTokens(body)
 	b.Mu.Lock()
 	b.Text = ""
+	fyne.DoAndWait(func() {
+		b.Title.SetText("Loading...")
+	})
 	b.Mu.Unlock()
 	b.renderTokens(textOrHTML)
 }
@@ -84,8 +93,12 @@ func (b *Browser) Special_Page(err error) {
 	var error_txt *canvas.Text
 	if err == nil {
 		error_txt = canvas.NewText("This page is either blank or currently unsupported", color.NRGBA{R: 200, G: 20, B: 60, A: 255})
+		// error_txt2 := widget.NewLabel("This page is either blank or currently unsupported")
+		// error_txt2.Wrapping = fyne.TextWrapBreak
 	} else {
 		error_txt = canvas.NewText(err.Error(), color.NRGBA{R: 200, G: 20, B: 60, A: 255})
+		// error_txt2 := widget.NewLabel(err.Error())
+		// error_txt2.Wrapping = fyne.TextWrapBreak
 	}
 	error_txt.TextSize = 20
 	error_txt.Alignment = fyne.TextAlignCenter
@@ -112,7 +125,7 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 		}
 	}
 
-	type styleState struct{ bold, italic, link bool }
+	type styleState struct{ bold, italic, link, inTitle bool }
 	state := styleState{}
 	stack := []string{}
 
@@ -125,6 +138,12 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 	for _, tok := range tokens {
 		switch tok.Kind {
 		case lexer.TextTok:
+			if state.inTitle {
+				fyne.DoAndWait(func() {
+					b.Title.SetText(strings.TrimSpace(tok.Data))
+				})
+				continue
+			}
 			beginInline()
 			seg := &widget.TextSegment{Text: tok.Data}
 			seg.Style = widget.RichTextStyleInline
@@ -136,7 +155,7 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 				seg.Style.TextStyle = fyne.TextStyle{Italic: true}
 			}
 			if state.link {
-				dummy_URL, _ := url.Parse("#")
+				dummy_URL, _ := url.Parse("#") //Will add href later
 				hyper_seg := &widget.HyperlinkSegment{
 					Text: seg.Text,
 					URL:  dummy_URL,
@@ -147,6 +166,9 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 			}
 		case lexer.StartTagTok:
 			switch tok.Data {
+			case "title":
+				state.inTitle = true
+				stack = append(stack, tok.Data)
 			case "b", "strong":
 				state.bold = true
 				stack = append(stack, tok.Data)
@@ -173,6 +195,9 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 
 		case lexer.EndTagTok:
 			switch tok.Data {
+			case "title":
+				state.inTitle = false
+				pop(&stack, tok.Data)
 			case "b", "strong":
 				state.bold = false
 				pop(&stack, tok.Data)
