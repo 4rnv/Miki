@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"miki/internal/lexer"
 	"miki/internal/yurl"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -111,7 +112,7 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 		}
 	}
 
-	type styleState struct{ bold, italic bool }
+	type styleState struct{ bold, italic, link bool }
 	state := styleState{}
 	stack := []string{}
 
@@ -134,8 +135,16 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 			} else if state.italic {
 				seg.Style.TextStyle = fyne.TextStyle{Italic: true}
 			}
-			inline.Segments = append(inline.Segments, seg)
-
+			if state.link {
+				dummy_URL, _ := url.Parse("#")
+				hyper_seg := &widget.HyperlinkSegment{
+					Text: seg.Text,
+					URL:  dummy_URL,
+				}
+				inline.Segments = append(inline.Segments, hyper_seg)
+			} else {
+				inline.Segments = append(inline.Segments, seg)
+			}
 		case lexer.StartTagTok:
 			switch tok.Data {
 			case "b", "strong":
@@ -150,6 +159,9 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 				flushInline()
 				stack = append(stack, "h1")
 				inline = widget.NewRichText()
+			case "a":
+				state.link = true
+				stack = append(stack, tok.Data)
 			case "pre":
 				flushInline()
 				stack = append(stack, "pre")
@@ -180,6 +192,9 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 					blocks = append(blocks, container.NewCenter(txt))
 				}
 				inline = newRichInline()
+				pop(&stack, tok.Data)
+			case "a":
+				state.link = false
 				pop(&stack, tok.Data)
 			case "pre":
 				if inline != nil {

@@ -25,7 +25,6 @@ func LexTokens(body string) []Token {
 	var text_buffer strings.Builder
 	var tag_buffer strings.Builder
 	inTag := false
-	//var tag_buffer strings.Builder
 
 	flushText := func() {
 		if text_buffer.Len() == 0 {
