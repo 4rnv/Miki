@@ -3,7 +3,6 @@ package main
 // WILL BE CHANGED TO PACKAGE GUI AFTER TESTING
 
 import (
-	"image/color"
 	"miki/internal/lexer"
 	"miki/internal/yurl"
 	"net/url"
@@ -35,6 +34,7 @@ func NewBrowser(a fyne.App) *Browser {
 	urlEntry := widget.NewEntry()
 	urlEntry.SetPlaceHolder("Enter URL")
 	title := widget.NewLabel("New Window")
+	title.Truncation = fyne.TextTruncateEllipsis
 	const (
 		InitialWidth  = 800
 		InitialHeight = 600
@@ -51,7 +51,6 @@ func NewBrowser(a fyne.App) *Browser {
 		urlEntry,
 		b.LoadBtn,
 	)
-	//toolbar := container.New(layout.NewVBoxLayout(), b.AddressBar, b.LoadBtn)
 	b.Content = container.NewVBox()
 	b.Scroll = container.NewVScroll(b.Content)
 	b.Scroll.SetMinSize(fyne.NewSize(InitialWidth, InitialHeight-40))
@@ -90,19 +89,22 @@ func (b *Browser) Special_Page(err error) {
 	img.FillMode = canvas.ImageFillContain
 	img.SetMinSize(fyne.NewSize(300, 200))
 	objs = append(objs, container.NewCenter(img))
-	var error_txt *canvas.Text
+	var error_txt string
 	if err == nil {
-		error_txt = canvas.NewText("This page is either blank or currently unsupported", color.NRGBA{R: 200, G: 20, B: 60, A: 255})
-		// error_txt2 := widget.NewLabel("This page is either blank or currently unsupported")
-		// error_txt2.Wrapping = fyne.TextWrapBreak
+		error_txt = "This page is either blank or currently unsupported"
 	} else {
-		error_txt = canvas.NewText(err.Error(), color.NRGBA{R: 200, G: 20, B: 60, A: 255})
-		// error_txt2 := widget.NewLabel(err.Error())
-		// error_txt2.Wrapping = fyne.TextWrapBreak
+		error_txt = err.Error()
 	}
-	error_txt.TextSize = 20
-	error_txt.Alignment = fyne.TextAlignCenter
-	objs = append(objs, container.NewCenter(error_txt))
+	error_message := widget.NewRichText(&widget.TextSegment{
+		Text: error_txt,
+		Style: widget.RichTextStyle{
+			Alignment: fyne.TextAlignCenter,
+			ColorName: theme.ColorNameError,
+			SizeName:  fyne.ThemeSizeName("subHeadingText"),
+		},
+	})
+	error_message.Wrapping = fyne.TextWrapWord
+	objs = append(objs, error_message)
 	b.Mu.Lock()
 	b.Content.Objects = objs
 	b.Text = ""
