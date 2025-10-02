@@ -211,12 +211,17 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 				pop(&stack, tok.Data)
 			case "h1":
 				if inline != nil {
-					title := collectText(inline)
-					txt := canvas.NewText(title, theme.Color(theme.ColorNameForeground))
-					txt.Alignment = fyne.TextAlignCenter
-					txt.TextStyle = fyne.TextStyle{Bold: true}
-					txt.TextSize = theme.TextSize() * 2
-					blocks = append(blocks, container.NewCenter(txt))
+					txt := collectText(inline)
+					heading := widget.NewRichText(&widget.TextSegment{
+						Text: txt,
+						Style: widget.RichTextStyle{
+							SizeName:  fyne.ThemeSizeName("headingText"),
+							Alignment: fyne.TextAlignCenter,
+							TextStyle: fyne.TextStyle{Bold: true},
+						},
+					})
+					heading.Wrapping = fyne.TextWrapWord
+					blocks = append(blocks, heading)
 				}
 				inline = newRichInline()
 				pop(&stack, tok.Data)
