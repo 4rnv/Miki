@@ -44,18 +44,10 @@ func NewURL(raw string) URL {
 	}
 	orig := raw
 	var parts []string
-	if strings.HasPrefix(orig, "view-source") {
-		parts = strings.SplitN(orig, ":", 2)
-		_url.Scheme = parts[0]
-		rest := parts[1]
-		if idx := strings.Index(rest, "/"); idx >= 0 {
-			_url.Host = rest[:idx]
-			_url.Path = rest[idx:]
-		} else {
-			_url.Host = rest
-			_url.Path = "/"
-		}
-		_url.Port = 80
+	if strings.HasPrefix(orig, "view-source:") {
+		_url.Scheme = "view-source"
+		innerRaw := strings.TrimPrefix(orig, "view-source:")
+		_url.Raw = innerRaw
 		return _url
 	} else if strings.HasPrefix(orig, "data:") {
 		parts = strings.SplitN(orig, ":", 2)
@@ -75,6 +67,9 @@ func NewURL(raw string) URL {
 		}
 		_url.Path = after
 		return _url
+	}
+	if !strings.Contains(orig, "://") && !strings.HasPrefix(orig, "/") {
+		orig = "http://" + orig
 	}
 	if strings.Contains(orig, "://") {
 		parsed, err := url.Parse(orig)
@@ -121,6 +116,15 @@ func (_url URL) Request(redirect_count int) (string, error) {
 	if redirect_count > 5 {
 		fmt.Println("Too many redirects.")
 		return "", errors.New("too many redirects")
+	}
+
+	if _url.Scheme == "view-source" {
+		inner := NewURL(_url.Raw)
+		body, err := inner.Request(redirect_count)
+		if err != nil {
+			return "", err
+		}
+		return body, nil
 	}
 
 	if _url.Scheme == "data" {

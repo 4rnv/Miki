@@ -46,11 +46,6 @@ func NewBrowser(a fyne.App) *Browser {
 		Title:      title,
 	}
 	b.LoadBtn = widget.NewButtonWithIcon("Load", theme.SearchIcon(), func() { go b.LoadAndRender(urlEntry.Text) })
-	// toolbar := container.NewGridWithColumns(3,
-	// 	container.NewStack(title),
-	// 	urlEntry,
-	// 	b.LoadBtn,
-	// )
 	toolbar := container.New(newToolbarLayout(),
 		container.NewStack(title),
 		urlEntry,
@@ -62,7 +57,6 @@ func NewBrowser(a fyne.App) *Browser {
 	contain := container.NewBorder(toolbar, nil, nil, nil, b.Scroll)
 	win.SetContent(contain)
 	win.Resize(fyne.NewSize(InitialWidth, InitialHeight))
-	b.Title.SetText("Loading")
 	urlEntry.OnSubmitted = func(s string) {
 		go b.LoadAndRender(s)
 	}
@@ -79,13 +73,17 @@ func (b *Browser) LoadAndRender(raw string) {
 		b.Special_Page(err)
 		return
 	}
-	textOrHTML := lexer.LexTokens(body)
 	b.Mu.Lock()
 	b.Text = ""
 	fyne.DoAndWait(func() {
 		b.Title.SetText("Loading...")
 	})
 	b.Mu.Unlock()
+	if u.Scheme == "view-source" {
+		b.RenderViewSource(body)
+		return
+	}
+	textOrHTML := lexer.LexTokens(body)
 	b.renderTokens(textOrHTML)
 }
 
@@ -319,6 +317,22 @@ func (t *toolbarLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 
 func newToolbarLayout() fyne.Layout {
 	return &toolbarLayout{}
+}
+
+func (b *Browser) RenderViewSource(text string) {
+	mono := widget.NewRichText(
+		&widget.TextSegment{
+			Text:  text,
+			Style: widget.RichTextStyle{TextStyle: fyne.TextStyle{Monospace: true}},
+		},
+	)
+	mono.Wrapping = fyne.TextWrapWord
+	b.Mu.Lock()
+	b.Content.Objects = []fyne.CanvasObject{mono}
+	fyne.DoAndWait(func() {
+		b.Title.SetText("View Source")
+	})
+	b.Mu.Unlock()
 }
 
 // WILL BE CHANGED TO FUNC RUN AFTER TESTING
