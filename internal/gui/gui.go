@@ -46,7 +46,12 @@ func NewBrowser(a fyne.App) *Browser {
 		Title:      title,
 	}
 	b.LoadBtn = widget.NewButtonWithIcon("Load", theme.SearchIcon(), func() { go b.LoadAndRender(urlEntry.Text) })
-	toolbar := container.NewGridWithColumns(3,
+	// toolbar := container.NewGridWithColumns(3,
+	// 	container.NewStack(title),
+	// 	urlEntry,
+	// 	b.LoadBtn,
+	// )
+	toolbar := container.New(newToolbarLayout(),
 		container.NewStack(title),
 		urlEntry,
 		b.LoadBtn,
@@ -57,6 +62,7 @@ func NewBrowser(a fyne.App) *Browser {
 	contain := container.NewBorder(toolbar, nil, nil, nil, b.Scroll)
 	win.SetContent(contain)
 	win.Resize(fyne.NewSize(InitialWidth, InitialHeight))
+	b.Title.SetText("Loading")
 	urlEntry.OnSubmitted = func(s string) {
 		go b.LoadAndRender(s)
 	}
@@ -277,6 +283,42 @@ func pop(stack *[]string, name string) {
 			return
 		}
 	}
+}
+
+type toolbarLayout struct{}
+
+func (t *toolbarLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	btnSize := objects[2].MinSize()
+	padding := theme.Padding()
+	availableWidth := size.Width - btnSize.Width - (2 * padding)
+	titleWidth := availableWidth / 3
+	addressBarWidth := availableWidth * 2 / 3
+	objects[0].Move(fyne.NewPos(0, 0))
+	objects[0].Resize(fyne.NewSize(titleWidth, size.Height))
+	objects[1].Move(fyne.NewPos(titleWidth+padding, 0))
+	objects[1].Resize(fyne.NewSize(addressBarWidth, size.Height))
+	objects[2].Move(fyne.NewPos(titleWidth+padding+addressBarWidth+padding, 0))
+	objects[2].Resize(fyne.NewSize(btnSize.Width, size.Height))
+}
+
+func (t *toolbarLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	titleMin := objects[0].MinSize()
+	entryMin := objects[1].MinSize()
+	btnMin := objects[2].MinSize()
+	minWidth := titleMin.Width + entryMin.Width + btnMin.Width + (2 * theme.Padding())
+	minHeight := titleMin.Height
+	if entryMin.Height > minHeight {
+		minHeight = entryMin.Height
+	}
+	if btnMin.Height > minHeight {
+		minHeight = btnMin.Height
+	}
+
+	return fyne.NewSize(minWidth, minHeight)
+}
+
+func newToolbarLayout() fyne.Layout {
+	return &toolbarLayout{}
 }
 
 // WILL BE CHANGED TO FUNC RUN AFTER TESTING
