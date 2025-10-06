@@ -3,6 +3,7 @@ package main
 // WILL BE CHANGED TO PACKAGE GUI AFTER TESTING
 
 import (
+	"fmt"
 	"miki/internal/lexer"
 	"miki/internal/yurl"
 	"net/url"
@@ -338,6 +339,13 @@ func (b *Browser) RenderViewSource(text string) {
 // WILL BE CHANGED TO FUNC RUN AFTER TESTING
 func main() {
 	a := app.NewWithID("miki.browser")
+	logo_path := "assets/logo.png"
+	logobytes, err := os.ReadFile(logo_path)
+	if err != nil {
+		fmt.Println(err)
+	}
+	logo := fyne.NewStaticResource("logo", logobytes)
+	a.SetIcon(logo)
 	b := NewBrowser(a)
 	if len(os.Args) >= 2 {
 		arg := os.Args[1]
