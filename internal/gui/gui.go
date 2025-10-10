@@ -132,7 +132,7 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 		}
 	}
 
-	type styleState struct{ bold, italic, link, inTitle bool }
+	type styleState struct{ bold, italic, link, monospace, inTitle, inBody bool }
 	state := styleState{}
 	stack := []string{}
 
@@ -151,15 +151,16 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 				})
 				continue
 			}
+			if !state.inBody {
+				continue
+			}
 			beginInline()
 			seg := &widget.TextSegment{Text: tok.Data}
 			seg.Style = widget.RichTextStyleInline
-			if state.bold && state.italic {
-				seg.Style.TextStyle = fyne.TextStyle{Bold: true, Italic: true}
-			} else if state.bold {
-				seg.Style.TextStyle = fyne.TextStyle{Bold: true}
-			} else if state.italic {
-				seg.Style.TextStyle = fyne.TextStyle{Italic: true}
+			seg.Style.TextStyle = fyne.TextStyle{
+				Bold:      state.bold,
+				Italic:    state.italic,
+				Monospace: state.monospace,
 			}
 			if state.link {
 				dummy_URL, _ := url.Parse("#") //Will add href later
@@ -173,6 +174,9 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 			}
 		case lexer.StartTagTok:
 			switch tok.Data {
+			case "body":
+				state.inBody = true
+				stack = append(stack, tok.Data)
 			case "title":
 				state.inTitle = true
 				stack = append(stack, tok.Data)
@@ -181,6 +185,9 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 				stack = append(stack, tok.Data)
 			case "i", "em":
 				state.italic = true
+				stack = append(stack, tok.Data)
+			case "code":
+				state.monospace = true
 				stack = append(stack, tok.Data)
 			case "p":
 				flushInline()
@@ -202,6 +209,9 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 
 		case lexer.EndTagTok:
 			switch tok.Data {
+			case "body":
+				state.inBody = false
+				pop(&stack, tok.Data)
 			case "title":
 				state.inTitle = false
 				pop(&stack, tok.Data)
@@ -210,6 +220,9 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 				pop(&stack, tok.Data)
 			case "i", "em":
 				state.italic = false
+				pop(&stack, tok.Data)
+			case "code":
+				state.monospace = false
 				pop(&stack, tok.Data)
 			case "p":
 				flushInline()
