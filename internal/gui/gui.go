@@ -1,6 +1,4 @@
-package main
-
-// WILL BE CHANGED TO PACKAGE GUI AFTER TESTING
+package gui
 
 import (
 	"fmt"
@@ -80,8 +78,8 @@ func (b *Browser) LoadAndRender(raw string) {
 		b.Title.SetText("Loading...")
 	})
 	b.Mu.Unlock()
-	if u.Scheme == "view-source" {
-		b.RenderViewSource(body)
+	if u.Scheme == "view-source" || u.Scheme == "data" || u.Scheme == "file" {
+		b.RenderStringContent(body, u.Scheme)
 		return
 	}
 	textOrHTML := lexer.LexTokens(body)
@@ -333,7 +331,7 @@ func newToolbarLayout() fyne.Layout {
 	return &toolbarLayout{}
 }
 
-func (b *Browser) RenderViewSource(text string) {
+func (b *Browser) RenderStringContent(text string, scheme string) {
 	mono := widget.NewRichText(
 		&widget.TextSegment{
 			Text:  text,
@@ -344,13 +342,12 @@ func (b *Browser) RenderViewSource(text string) {
 	b.Mu.Lock()
 	b.Content.Objects = []fyne.CanvasObject{mono}
 	fyne.DoAndWait(func() {
-		b.Title.SetText("View Source")
+		b.Title.SetText(scheme)
 	})
 	b.Mu.Unlock()
 }
 
-// WILL BE CHANGED TO FUNC RUN AFTER TESTING
-func main() {
+func Run() {
 	a := app.NewWithID("miki.browser")
 	logo_path := "assets/logo.png"
 	logobytes, err := os.ReadFile(logo_path)
