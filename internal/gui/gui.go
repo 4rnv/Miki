@@ -1,7 +1,7 @@
 package gui
 
 import (
-	"fmt"
+	"miki/internal/assets"
 	"miki/internal/lexer"
 	"miki/internal/yurl"
 	"net/url"
@@ -88,7 +88,8 @@ func (b *Browser) LoadAndRender(raw string) {
 
 func (b *Browser) Special_Page(err error) {
 	var objs []fyne.CanvasObject
-	img := canvas.NewImageFromFile("assets/sayak.png")
+	img_res := assets.Get("sayak.png")
+	img := canvas.NewImageFromResource(img_res)
 	img.FillMode = canvas.ImageFillContain
 	img.SetMinSize(fyne.NewSize(300, 200))
 	objs = append(objs, container.NewCenter(img))
@@ -349,13 +350,10 @@ func (b *Browser) RenderStringContent(text string, scheme string) {
 
 func Run() {
 	a := app.NewWithID("miki.browser")
-	logo_path := "assets/logo.png"
-	logobytes, err := os.ReadFile(logo_path)
-	if err != nil {
-		fmt.Println(err)
+	logo := assets.Get("logo.png")
+	if logo != nil {
+		a.SetIcon(logo)
 	}
-	logo := fyne.NewStaticResource("logo", logobytes)
-	a.SetIcon(logo)
 	b := NewBrowser(a)
 	if len(os.Args) >= 2 {
 		arg := os.Args[1]
