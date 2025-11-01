@@ -1,11 +1,14 @@
 package gui
 
 import (
+	"encoding/json"
+	"fmt"
 	"miki/internal/assets"
 	"miki/internal/lexer"
 	"miki/internal/yurl"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -13,19 +16,22 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
 type Browser struct {
-	Window     fyne.Window
-	AddressBar *widget.Entry
-	Scroll     *container.Scroll
-	LoadBtn    *widget.Button
-	Content    *fyne.Container
-	Title      *widget.Label
-	Text       string
-	Mu         sync.Mutex
+	Window      fyne.Window
+	AddressBar  *widget.Entry
+	Scroll      *container.Scroll
+	LoadBtn     *widget.Button
+	Content     *fyne.Container
+	Title       *widget.Label
+	Text        string
+	Mu          sync.Mutex
+	History     []string
+	HistoryFile string
 }
 
 func NewBrowser(a fyne.App) *Browser {
@@ -38,17 +44,21 @@ func NewBrowser(a fyne.App) *Browser {
 		InitialWidth  = 800
 		InitialHeight = 600
 	)
-
+	historyPath := filepath.Join(fyne.CurrentApp().Storage().RootURI().Path(), "history.json")
+	fmt.Println("History path: ", historyPath)
 	b := &Browser{
-		Window:     win,
-		AddressBar: urlEntry,
-		Title:      title,
+		Window:      win,
+		AddressBar:  urlEntry,
+		Title:       title,
+		HistoryFile: historyPath,
 	}
+	b.loadHistory()
 	b.LoadBtn = widget.NewButtonWithIcon("Load", theme.SearchIcon(), func() { go b.LoadAndRender(urlEntry.Text) })
+	historyBtn := widget.NewButtonWithIcon("History", theme.HistoryIcon(), func() { b.showHistory() })
 	toolbar := container.New(newToolbarLayout(),
 		container.NewStack(title),
 		urlEntry,
-		b.LoadBtn,
+		container.NewHBox(b.LoadBtn, historyBtn),
 	)
 	b.Content = container.NewVBox()
 	b.Scroll = container.NewVScroll(b.Content)
@@ -76,6 +86,7 @@ func (b *Browser) LoadAndRender(raw string) {
 	b.Text = ""
 	fyne.DoAndWait(func() {
 		b.Title.SetText("Loading...")
+		b.addToHistory(u.Raw)
 	})
 	b.Mu.Unlock()
 	if u.Scheme == "view-source" || u.Scheme == "data" || u.Scheme == "file" {
@@ -286,6 +297,23 @@ func collectText(rt *widget.RichText) string {
 	return sb.String()
 }
 
+// Special func for view-source, data, file schemes
+func (b *Browser) RenderStringContent(text string, scheme string) {
+	mono := widget.NewRichText(
+		&widget.TextSegment{
+			Text:  text,
+			Style: widget.RichTextStyle{TextStyle: fyne.TextStyle{Monospace: true}},
+		},
+	)
+	mono.Wrapping = fyne.TextWrapWord
+	b.Mu.Lock()
+	b.Content.Objects = []fyne.CanvasObject{mono}
+	fyne.DoAndWait(func() {
+		b.Title.SetText(scheme)
+	})
+	b.Mu.Unlock()
+}
+
 func pop(stack *[]string, name string) {
 	st := *stack
 	for i := len(st) - 1; i >= 0; i-- {
@@ -332,20 +360,69 @@ func newToolbarLayout() fyne.Layout {
 	return &toolbarLayout{}
 }
 
-func (b *Browser) RenderStringContent(text string, scheme string) {
-	mono := widget.NewRichText(
-		&widget.TextSegment{
-			Text:  text,
-			Style: widget.RichTextStyle{TextStyle: fyne.TextStyle{Monospace: true}},
+func (b *Browser) addToHistory(url string) {
+	if len(b.History) == 0 || b.History[len(b.History)-1] != url {
+		b.History = append(b.History, url)
+		// Keep only latest 10
+		if len(b.History) > 10 {
+			b.History = b.History[len(b.History)-10:]
+		}
+		b.saveHistory()
+	}
+}
+
+func (b *Browser) showHistory() {
+	if len(b.History) == 0 {
+		dialog.ShowInformation("History", "No history.", b.Window)
+		return
+	}
+	history := make([]string, len(b.History))
+	copy(history, b.History)
+	for i := 0; i < len(history)/2; i++ {
+		history[i], history[len(history)-1-i] = history[len(history)-1-i], history[i]
+	}
+	list := widget.NewList(
+		func() int { return len(history) },
+		func() fyne.CanvasObject { return widget.NewButton("", nil) },
+		func(i widget.ListItemID, o fyne.CanvasObject) {
+			btn := o.(*widget.Button)
+			entry := history[i]
+			btn.SetText(entry)
+			btn.OnTapped = func() {
+				b.AddressBar.SetText(entry)
+				go b.LoadAndRender(entry)
+			}
 		},
 	)
-	mono.Wrapping = fyne.TextWrapWord
-	b.Mu.Lock()
-	b.Content.Objects = []fyne.CanvasObject{mono}
-	fyne.DoAndWait(func() {
-		b.Title.SetText(scheme)
-	})
-	b.Mu.Unlock()
+
+	d := dialog.NewCustom("History", "Close",
+		container.NewVScroll(list),
+		b.Window,
+	)
+	d.Resize(fyne.NewSize(500, 400))
+	d.Show()
+}
+
+func (b *Browser) saveHistory() {
+	if len(b.History) == 0 {
+		return
+	}
+	data, err := json.MarshalIndent(b.History, "", "  ")
+	if err != nil {
+		fmt.Println("Error marshaling history:", err)
+		return
+	}
+	err = os.WriteFile(b.HistoryFile, data, 0644)
+	if err != nil {
+		fmt.Println("Error saving history:", err)
+	}
+}
+
+func (b *Browser) loadHistory() {
+	data, err := os.ReadFile(b.HistoryFile)
+	if err == nil && len(data) > 0 {
+		json.Unmarshal(data, &b.History)
+	}
 }
 
 func Run() {

@@ -33,6 +33,7 @@ func (_url URL) _url_() string {
 
 func NewURL(raw string) URL {
 	var _url URL
+	_url.Raw = raw
 	trimmed := strings.TrimSpace(strings.ToLower(raw))
 	if trimmed == "about:blank" {
 		_url.Scheme = "about"
