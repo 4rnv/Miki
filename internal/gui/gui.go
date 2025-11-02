@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"miki/internal/assets"
 	"miki/internal/lexer"
+	"miki/internal/mtheme"
 	"miki/internal/yurl"
 	"net/url"
 	"os"
@@ -55,10 +56,45 @@ func NewBrowser(a fyne.App) *Browser {
 	b.loadHistory()
 	b.LoadBtn = widget.NewButtonWithIcon("Load", theme.SearchIcon(), func() { go b.LoadAndRender(urlEntry.Text) })
 	historyBtn := widget.NewButtonWithIcon("History", theme.HistoryIcon(), func() { b.showHistory() })
+	currentFontSize := a.Preferences().FloatWithFallback("font_size", 14)
+	currentTheme := a.Preferences().StringWithFallback("theme", "custom")
+	customTheme := &mtheme.MTheme{FontSize: float32(currentFontSize)}
+
+	switch currentTheme {
+	case "light":
+		a.Settings().SetTheme(&mtheme.TemeVariant{Theme: theme.DefaultTheme(), Variant: theme.VariantLight})
+	case "dark":
+		a.Settings().SetTheme(&mtheme.TemeVariant{Theme: theme.DefaultTheme(), Variant: theme.VariantDark})
+	default:
+		a.Settings().SetTheme(customTheme)
+	}
+
+	showSettingsButton := func() {
+		themeSelect := widget.NewSelect([]string{"light", "dark", "custom"}, func(selected string) {
+			switch selected {
+			case "light":
+				a.Settings().SetTheme(&mtheme.TemeVariant{Theme: theme.DefaultTheme(), Variant: theme.VariantLight})
+				a.Preferences().SetString("theme", "light")
+			case "dark":
+				a.Settings().SetTheme(&mtheme.TemeVariant{Theme: theme.DefaultTheme(), Variant: theme.VariantDark})
+				a.Preferences().SetString("theme", "dark")
+			default:
+				a.Settings().SetTheme(customTheme)
+				a.Preferences().SetString("theme", "custom")
+			}
+		})
+		themeSelect.SetSelected(currentTheme)
+		content := container.NewGridWithColumns(2, widget.NewLabel("Theme"), themeSelect)
+		dialog.ShowCustom("Settings", "Close",
+			content,
+			b.Window,
+		)
+	}
+	settingsBtn := widget.NewButton("Settings", showSettingsButton)
 	toolbar := container.New(newToolbarLayout(),
 		container.NewStack(title),
 		urlEntry,
-		container.NewHBox(b.LoadBtn, historyBtn),
+		container.NewHBox(b.LoadBtn, historyBtn, settingsBtn),
 	)
 	b.Content = container.NewVBox()
 	b.Scroll = container.NewVScroll(b.Content)
