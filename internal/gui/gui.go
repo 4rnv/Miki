@@ -70,7 +70,7 @@ func NewBrowser(a fyne.App) *Browser {
 	}
 
 	showSettingsButton := func() {
-		themeSelect := widget.NewSelect([]string{"light", "dark", "custom"}, func(selected string) {
+		themeSelect := widget.NewSelect([]string{"Light", "Dark", "Custom"}, func(selected string) {
 			switch selected {
 			case "light":
 				a.Settings().SetTheme(&mtheme.TemeVariant{Theme: theme.DefaultTheme(), Variant: theme.VariantLight})
@@ -90,7 +90,7 @@ func NewBrowser(a fyne.App) *Browser {
 			b.Window,
 		)
 	}
-	settingsBtn := widget.NewButton("Settings", showSettingsButton)
+	settingsBtn := widget.NewButtonWithIcon("Settings", theme.SettingsIcon(), showSettingsButton)
 	toolbar := container.New(newToolbarLayout(),
 		container.NewStack(title),
 		urlEntry,
@@ -366,8 +366,8 @@ func (t *toolbarLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	btnSize := objects[2].MinSize()
 	padding := theme.Padding()
 	availableWidth := size.Width - btnSize.Width - (2 * padding)
-	titleWidth := availableWidth / 3
-	addressBarWidth := availableWidth * 2 / 3
+	titleWidth := availableWidth / 4
+	addressBarWidth := availableWidth * 3 / 4
 	objects[0].Move(fyne.NewPos(0, 0))
 	objects[0].Resize(fyne.NewSize(titleWidth, size.Height))
 	objects[1].Move(fyne.NewPos(titleWidth+padding, 0))
