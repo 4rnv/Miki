@@ -265,3 +265,100 @@ func (_url URL) Request(redirect_count int) (string, error) {
 	}
 	return string(body), nil
 }
+
+func (base URL) ResolveURL(relativeURL string) URL {
+	if strings.HasPrefix(relativeURL, "http://") ||
+		strings.HasPrefix(relativeURL, "https://") ||
+		strings.HasPrefix(relativeURL, "file://") ||
+		strings.HasPrefix(relativeURL, "data:") {
+		return NewURL(relativeURL)
+	}
+
+	if strings.HasPrefix(relativeURL, "//") {
+		return NewURL(base.Scheme + ":" + relativeURL)
+	}
+
+	if strings.HasPrefix(relativeURL, "/") {
+		resolved := fmt.Sprintf("%s://%s:%d%s",
+			base.Scheme, base.Host, base.Port, relativeURL)
+		return NewURL(resolved)
+	}
+
+	basePath := base.Path
+	if !strings.HasSuffix(basePath, "/") {
+		lastSlash := strings.LastIndex(basePath, "/")
+		if lastSlash >= 0 {
+			basePath = basePath[:lastSlash+1]
+		} else {
+			basePath = "/"
+		}
+	}
+	resolvedPath := basePath + relativeURL
+
+	parts := strings.Split(resolvedPath, "/")
+	cleaned := []string{}
+	for _, part := range parts {
+		if part == "" || part == "." {
+			continue
+		}
+		if part == ".." {
+			if len(cleaned) > 0 {
+				cleaned = cleaned[:len(cleaned)-1]
+			}
+		} else {
+			cleaned = append(cleaned, part)
+		}
+	}
+	resolvedPath = "/" + strings.Join(cleaned, "/")
+	resolved := fmt.Sprintf("%s://%s:%d%s",
+		base.Scheme, base.Host, base.Port, resolvedPath)
+	return NewURL(resolved)
+}
+
+func (_url URL) FetchImage() ([]byte, error) {
+	if _url.Scheme != "http" && _url.Scheme != "https" {
+		return nil, errors.New("unsupported scheme for images")
+	}
+	address := _url.Host
+	if !strings.Contains(_url.Host, ":") && _url.Port != 0 {
+		address = _url.Host + ":" + strconv.Itoa(_url.Port)
+	}
+
+	var conn net.Conn
+	var err error
+	if _url.Scheme == "https" {
+		dialer := &net.Dialer{Timeout: 12 * time.Second}
+		config := &tls.Config{ServerName: _url.Host}
+		conn, err = tls.DialWithDialer(dialer, "tcp", address, config)
+	} else {
+		conn, err = net.DialTimeout("tcp", address, 12*time.Second)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if _url.Path == "" {
+		_url.Path = "/"
+	}
+
+	req := "GET " + _url.Path + " HTTP/1.1\r\n"
+	req += "User-Agent: AveMaria-Miki\r\n"
+	req += "Host: " + _url.Host + "\r\n\r\n"
+
+	_, err = conn.Write([]byte(req))
+	if err != nil {
+		return nil, err
+	}
+	reader := bufio.NewReader(conn)
+	_, err = reader.ReadString('\n')
+	if err != nil {
+		return nil, err
+	}
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil || line == "\r\n" || line == "\n" {
+			break
+		}
+	}
+	return io.ReadAll(reader)
+}

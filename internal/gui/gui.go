@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"miki/internal/assets"
@@ -33,6 +34,7 @@ type Browser struct {
 	Mu          sync.Mutex
 	History     []string
 	HistoryFile string
+	CurrentURL  yurl.URL
 }
 
 func NewBrowser(a fyne.App) *Browser {
@@ -70,7 +72,7 @@ func NewBrowser(a fyne.App) *Browser {
 	}
 
 	showSettingsButton := func() {
-		themeSelect := widget.NewSelect([]string{"Light", "Dark", "Custom"}, func(selected string) {
+		themeSelect := widget.NewSelect([]string{"light", "dark", "custom"}, func(selected string) {
 			switch selected {
 			case "light":
 				a.Settings().SetTheme(&mtheme.TemeVariant{Theme: theme.DefaultTheme(), Variant: theme.VariantLight})
@@ -119,6 +121,7 @@ func (b *Browser) LoadAndRender(raw string) {
 		return
 	}
 	b.Mu.Lock()
+	b.CurrentURL = u
 	b.Text = ""
 	fyne.DoAndWait(func() {
 		b.Title.SetText("Loading...")
@@ -131,6 +134,34 @@ func (b *Browser) LoadAndRender(raw string) {
 	}
 	textOrHTML := lexer.LexTokens(body)
 	b.renderTokens(textOrHTML)
+}
+
+func (b *Browser) loadAndRenderImage(src string, placeholder *fyne.Container) {
+	baseURL := b.CurrentURL
+	imgURL := baseURL.ResolveURL(src)
+	imageData, err := imgURL.FetchImage()
+	if err != nil {
+		fmt.Println("Failed to load image:", err)
+		b.Mu.Lock()
+		placeholder.Objects = []fyne.CanvasObject{
+			widget.NewLabel("[Image failed to load]"),
+		}
+		fyne.DoAndWait(func() {
+			placeholder.Refresh()
+		})
+		b.Mu.Unlock()
+		return
+	}
+	fmt.Println("This function loadAndRenderImage has been triggered for ", imgURL.Raw)
+	img := canvas.NewImageFromReader(bytes.NewReader(imageData), src)
+	img.FillMode = canvas.ImageFillOriginal
+	img.SetMinSize(fyne.NewSize(200, 200))
+	b.Mu.Lock()
+	placeholder.Objects = []fyne.CanvasObject{img}
+	fyne.DoAndWait(func() {
+		placeholder.Refresh()
+	})
+	b.Mu.Unlock()
 }
 
 func (b *Browser) Special_Page(err error) {
@@ -249,6 +280,18 @@ func (b *Browser) renderTokens(tokens []lexer.Token) {
 				stack = append(stack, "pre")
 				inline = widget.NewRichText()
 				inline.Wrapping = fyne.TextWrapOff
+			case "img":
+				if src, ok := tok.Attrs["src"]; ok {
+					flushInline()
+					loadingLabel := widget.NewLabel("Loading image...")
+					loadingLabel.TextStyle = fyne.TextStyle{TabWidth: 10, Symbol: true}
+					placeholder := container.NewStack(loadingLabel)
+					blocks = append(blocks, placeholder)
+
+					go b.loadAndRenderImage(src, placeholder)
+				}
+				stack = append(stack, tok.Data)
+
 			default:
 				stack = append(stack, tok.Data)
 			}

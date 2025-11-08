@@ -16,8 +16,9 @@ const (
 )
 
 type Token struct {
-	Kind TokenKind
-	Data string
+	Kind  TokenKind
+	Data  string
+	Attrs map[string]string
 }
 
 func LexTokens(body string) []Token {
@@ -32,6 +33,20 @@ func LexTokens(body string) []Token {
 		}
 		out = append(out, Token{Kind: TextTok, Data: HtmlUnescape(text_buffer.String())})
 		text_buffer.Reset()
+	}
+
+	parseAttributes := func(attrString string) map[string]string {
+		attrs := make(map[string]string)
+		parts := strings.Fields(attrString)
+		for _, part := range parts {
+			if eq := strings.Index(part, "="); eq >= 0 {
+				key := strings.ToLower(part[:eq])
+				value := part[eq+1:]
+				value = strings.Trim(value, "\"'")
+				attrs[key] = value
+			}
+		}
+		return attrs
 	}
 	flushTag := func() {
 		if tag_buffer.Len() == 0 {
@@ -48,14 +63,17 @@ func LexTokens(body string) []Token {
 			raw = strings.TrimSpace(raw[1:])
 		}
 		name := raw
+		attrs := make(map[string]string)
 		if sp := strings.IndexFunc(raw, unicode.IsSpace); sp >= 0 {
 			name = raw[:sp]
+			attrString := strings.TrimSpace(raw[sp+1:])
+			attrs = parseAttributes(attrString)
 		}
 		name = strings.ToLower(name)
 		if end {
-			out = append(out, Token{Kind: EndTagTok, Data: name})
+			out = append(out, Token{Kind: EndTagTok, Data: name, Attrs: attrs})
 		} else {
-			out = append(out, Token{Kind: StartTagTok, Data: name})
+			out = append(out, Token{Kind: StartTagTok, Data: name, Attrs: attrs})
 		}
 	}
 
