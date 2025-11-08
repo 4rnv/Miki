@@ -127,6 +127,7 @@ func HtmlUnescape(s string) string {
 	s = strings.ReplaceAll(s, "&copy;", "©")
 	s = strings.ReplaceAll(s, "&nbsp;", "	")
 	s = strings.ReplaceAll(s, "&apos;", "'")
+	s = strings.ReplaceAll(s, "&rsquo;", "'")
 	return s
 }
 

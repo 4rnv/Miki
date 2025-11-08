@@ -44,8 +44,8 @@ func NewBrowser(a fyne.App) *Browser {
 	title := widget.NewLabel("New Window")
 	title.Truncation = fyne.TextTruncateEllipsis
 	const (
-		InitialWidth  = 800
-		InitialHeight = 600
+		InitialWidth  = 960
+		InitialHeight = 720
 	)
 	historyPath := filepath.Join(fyne.CurrentApp().Storage().RootURI().Path(), "history.json")
 	fmt.Println("History path: ", historyPath)
