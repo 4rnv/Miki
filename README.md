@@ -16,7 +16,12 @@ A rudimentary web browser built in Go with the Fyne GUI framework. Based on exer
 - Theming: Light, dark, custom.
 
 ## Installation and Usage
+
+### Prerequisites
 - Go required (https://go.dev/doc/install)
+- Fyne also requires a C compiler. (https://docs.fyne.io/started/quick/#prerequisites)
+
+### Install
 - `git clone https://github.com/4rnv/Miki.git`
 - `cd Miki`
 - `go run cmd/miki/main.go`
